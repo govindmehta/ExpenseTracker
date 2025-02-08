@@ -1,72 +1,86 @@
 import express from "express";
 import { authMiddleware } from "../middleware.js";
 import { PrismaClient } from "@prisma/client";
-const router = express.Router();
 
+const router = express.Router();
 const prisma = new PrismaClient();
 
-router.get("/expenses", authMiddleware, async (req, res) => {
-  const { email } = req.user;
-  const user = await prisma.user.findUnique({
-    where: { email },
-    include: { budgets: true },
-  });
-  if (user.budgets.length === 0) {
-    return res.status(404).json({ msg: "No Budgets found for this user" });
-  }
+// GET /expenses/:budgetId - Retrieve expenses for a specific budget.
+router.get("/expenses/:budgetId", authMiddleware, async (req, res) => {
   try {
+    const { email } = req.user;
     if (!email) {
-      return res.status(400).json({ msg: "Enter correct email" });
-    } else {
-      const budgetId = user.budgets[0].id;
-      const expenses = await prisma.expense.findMany({
-        where: { budgetId }, // ✅ Correct way to find expenses by budgetId
-      });
-      if (expenses.length === 0) {
-        return res.status(404).json({ msg: "No expenses found" });
-      }
-      return res.status(200).json({
-        msg: "List of expenses",
-        Expenses: expenses,
-      });
+      return res.status(400).json({ msg: "Invalid email provided" });
     }
-  } catch (error) {
-    return res.status(408).json({
-      msg: "Server Error",
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { budgets: true },
     });
+
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    const { budgetId } = req.params;
+    const idInNumber = Number(budgetId)
+    // Check if the provided budgetId belongs to the user.
+    if (!user.budgets || !user.budgets.find(budget => budget.id === Number(budgetId))) { //////////////////////////////////////////
+      return res.status(403).json({ msg: "Budget not found for this user" });
+    }
+
+    const expenses = await prisma.expense.findMany({
+      where: { budgetId: idInNumber },
+    });
+
+    if (!expenses || expenses.length === 0) {
+      return res.status(404).json({ msg: "No expenses found for this budget" });
+    }
+
+    return res.status(200).json({
+      msg: "List of expenses",
+      Expenses: expenses,
+    });
+  } catch (error) {
+    console.error("Error in GET /expenses:", error.message);
+    return res.status(500).json({ msg: "Server Error", error: error.message });
   }
 });
 
-router.post("/addExpense", authMiddleware, async (req, res) => {
+// POST /addExpense/:budgetId - Add a new expense for a specific budget.
+router.post("/addExpense/:budgetId", authMiddleware, async (req, res) => {
   try {
     const { email } = req.user;
-    const {  name, amount } = req.body; // ✅ Get data from req.body
+    const { name, amount } = req.body;
+    const { budgetId } = req.params;
 
-    // ✅ Validate required fields
-    if (!email || !name || !amount) {
+    // Validate required fields
+    if (!email || !name || !amount || !budgetId) {
       return res
         .status(400)
-        .json({ msg: "Email, name, and amount are required" });
+        .json({ msg: "Email, name, amount, and budgetId are required" });
     }
 
-    // ✅ Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { budgets: true }, // ✅ Fetch user's budgets
+      include: { budgets: true },
     });
 
-    if (user.budgets.length === 0) {
-      return res.status(404).json({ msg: "No budget found for this user" });
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
     }
 
-    const budgetId = user.budgets[0].id;
+    // Verify the budget belongs to the user.
+    if (!user.budgets || !user.budgets.find(budget => budget.id === Number(budgetId))) {
+      return res.status(403).json({ msg: "Budget does not belong to this user" });
+    }
 
-    // ✅ Create new expense linked to user
+    // Create new expense linked to the specified budget
     const newExpense = await prisma.expense.create({
       data: {
         name,
         amount: amount,
-        budgetId: budgetId, // ✅ Auto-fetch budgetId
+        budgetId: Number(budgetId),
       },
     });
 
@@ -75,45 +89,45 @@ router.post("/addExpense", authMiddleware, async (req, res) => {
       expense: newExpense,
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ msg: "Server Error", error: error.message });
+    console.error("Error in POST /addExpense:", error.message);
+    return res
+      .status(500)
+      .json({ msg: "Server Error", error: error.message });
   }
 });
 
-router.post("/removeExpense", authMiddleware, async (req, res) => {
+router.post("/removeExpense/:budgetId/:expenseId", authMiddleware, async (req, res) => {
   try {
-    const { email, name, amount } = req.body; // ✅ Extract data from request body
+    const { email } = req.user;
+    const { budgetId, expenseId } = req.params;
 
-    // ✅ Validate input
-    if (!email || !name || !amount) {
+    // Validate required input
+    if (!email || !budgetId || !expenseId) {
       return res
         .status(400)
-        .json({ msg: "Email, name, and amount are required" });
+        .json({ msg: "Email, budgetId, and expenseId are required" });
     }
 
-    // ✅ Find user by email
+    // Find the user and include their budgets
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { budgets: true }, // Include budgets to verify relationship
+      include: { budgets: true },
     });
 
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    if (user.budgets.length === 0) {
-      return res.status(404).json({ msg: "No budgets found for this user" });
+    // Verify that the specified budget belongs to the user.
+    if (!user.budgets || !user.budgets.find((budget) => budget.id === Number(budgetId))) {
+      return res.status(403).json({ msg: "Budget does not belong to this user" });
     }
 
-    // ✅ Get the first budgetId (or modify this logic if the user has multiple budgets)
-    const budgetId = user.budgets[0].id;
-
-    // ✅ Find the expense using name and amount
+    // Find the expense using expenseId and budgetId.
     const expense = await prisma.expense.findFirst({
       where: {
-        name,
-        amount: amount,
-        budgetId: budgetId, // Ensure it belongs to the user's budget
+        id: Number(expenseId),
+        budgetId: Number(budgetId),
       },
     });
 
@@ -121,14 +135,14 @@ router.post("/removeExpense", authMiddleware, async (req, res) => {
       return res.status(404).json({ msg: "Expense not found" });
     }
 
-    // ✅ Delete the expense
+    // Delete the expense.
     await prisma.expense.delete({
       where: { id: expense.id },
     });
 
-    // ✅ Fetch updated expenses
+    // Fetch the updated list of expenses for the budget.
     const updatedExpenses = await prisma.expense.findMany({
-      where: { budgetId },
+      where: { budgetId: Number(budgetId) },
     });
 
     return res.status(200).json({
@@ -136,11 +150,8 @@ router.post("/removeExpense", authMiddleware, async (req, res) => {
       expenses: updatedExpenses,
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      msg: "Server Error",
-      error: error.message,
-    });
+    console.error("Error in POST /removeExpense:", error.message);
+    return res.status(500).json({ msg: "Server Error", error: error.message });
   }
 });
 

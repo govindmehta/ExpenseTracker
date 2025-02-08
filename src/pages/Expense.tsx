@@ -2,28 +2,38 @@ import { useEffect, useState } from "react";
 import styled from "styled-components";
 import axios from "axios";
 import Card2 from "../components/Card2";
+import { useParams } from "react-router-dom"; // Import useParams
+import Loader from "../components/Loader";
 
 function Expense() {
+  const { budgetId } = useParams<{ budgetId: string }>(); // Retrieve budgetId from URL
   const [amountUsed, setAmountUsed] = useState<number>(0);
   const [remainingAmount, setRemainingAmount] = useState<number>(0);
-  const [expenseList, setExpenseList] = useState<{ id: string; name: string; amount: number }[]>([]);
-
-  const [name,setName] = useState<string>("");
-  const [amount,setAmount] = useState<number>(0);
-
-
+  const [expenseList, setExpenseList] = useState<
+    { id: string; name: string; amount: number }[]
+  >([]);
+  const [name, setName] = useState<string>(""); // Name of budget (if needed)
+  const [amount, setAmount] = useState<number>(0); // Total budget amount
   const [expenseName, setExpenseName] = useState<string>("");
   const [expenseAmount, setExpenseAmount] = useState<number>(0);
 
-  // Function to fetch expenses from the backend
+  const [loading, setLoading] = useState<boolean>(false);
+
+  // Function to fetch expenses from the backend for a given budgetId
   const fetchExpenses = async () => {
-    const token = localStorage.getItem("authToken")
+    setLoading(true);
+    const token = localStorage.getItem("authToken");
     try {
-      const response = await axios.get("http://localhost:3000/api/v1/expense/expenses",{
-        headers: {Authorization: `Bearer ${token}`}
-      });
+      // Assume your API supports a query parameter for budgetId
+      const response = await axios.get(
+        `http://localhost:3000/api/v1/expense/expenses/${budgetId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setExpenseList(response.data.Expenses);
       calculateAmounts(response.data.Expenses);
+      setLoading(false);
     } catch (error) {
       console.error("Failed to fetch expenses:", error);
     }
@@ -38,12 +48,21 @@ function Expense() {
 
   // Function to add an expense
   const addExpense = async () => {
+    setLoading(true);
     if (!expenseName || expenseAmount <= 0) return;
-    
+
     const newExpense = { name: expenseName, amount: expenseAmount };
 
     try {
-      const response = await axios.post("http://localhost:3000/api/v1/expenses", newExpense);
+      const response = await axios.post(
+        `http://localhost:3000/api/v1/expense/addExpense/${budgetId}`,
+        newExpense,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          },
+        }
+      );
       setExpenseList((prev) => [...prev, response.data.expense]);
       calculateAmounts([...expenseList, response.data.expense]);
       setExpenseName("");
@@ -51,30 +70,39 @@ function Expense() {
     } catch (error) {
       console.error("Failed to add expense:", error);
     }
+    setLoading(false);
   };
 
   // Function to delete an expense
   const deleteExpense = async (id: string) => {
+    setLoading(true)
     try {
-      await axios.delete(`http://localhost:3000/api/v1/expenses/${id}`);
+      await axios.post(`http://localhost:3000/api/v1/expense/removeExpense/${budgetId}/${id}`, {},{
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      });
       const updatedExpenses = expenseList.filter((exp) => exp.id !== id);
       setExpenseList(updatedExpenses);
       calculateAmounts(updatedExpenses);
     } catch (error) {
       console.error("Failed to delete expense:", error);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchExpenses();
-  }, []);
+    if (budgetId) {
+      fetchExpenses();
+    }
+  }, [budgetId]);
 
   return (
     <StyledWrapper>
       <div className="container">
         <h1>Expense Info</h1>
         <TopContainer>
-          <h2>Name of Budget: {name}</h2>
+          <h2>Name of Budget: {name || "Budget " + budgetId}</h2>
           <h2>Total Budget: {amount.toString()}</h2>
           <h2>Amount Used: {amountUsed.toString()}</h2>
           <h2>Remaining Amount: {remainingAmount.toString()}</h2>
@@ -95,16 +123,22 @@ function Expense() {
           />
           <button onClick={addExpense}>Add</button>
         </span>
-        <BottomContainer>
-          {expenseList.map((expense) => (
-            <Card2
-              key={expense.id}
-              name={expense.name}
-              amount={expense.amount}
-              onDelete={() => deleteExpense(expense.id)}
-            />
-          ))}
-        </BottomContainer>
+        {loading ? (
+          <Loader />
+        ) : expenseList.length > 0 ? (
+          <BottomContainer>
+            {expenseList.map((expense) => (
+              <Card2
+                key={expense.id}
+                name={expense.name}
+                amount={expense.amount}
+                onDelete={() => deleteExpense(expense.id)}
+              />
+            ))}
+          </BottomContainer>
+        ) : (
+          <h1>No Expenses Found</h1>
+        )}
       </div>
     </StyledWrapper>
   );

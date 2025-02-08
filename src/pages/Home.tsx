@@ -3,55 +3,55 @@ import Card from "../components/Card";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Loader from "../components/Loader";
+import { useNavigate } from "react-router-dom"; // Import the hook
 
 interface UserObject {
   name: string;
   email: string;
 }
+
 type Budget = {
-  id: string; // <-- Add this
+  id: string;
   name: string;
   totalAmount: string;
 };
 
-const HomePage = ({ email, name }: UserObject) => {
+const Home = ({ email, name }: UserObject) => {
   const [bname, setBname] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [budgetList, setBudgetList] = useState<Budget[]>([]);
-  const [n, setN] = useState<Number>(0);
-  const [loading, setLoading] = useState<boolean>(false); // 👈 Loading state
+  const [loading, setLoading] = useState<boolean>(false);
+  
+  // Initialize navigation
+  const navigate = useNavigate();
 
+  // Add a new budget
   const addBudget = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("authToken");
-
       if (!token) {
         console.error("No token found");
+        setLoading(false);
         return;
       }
 
       const newBudget = {
         name: bname,
-        totalAmount: Number(amount), // Convert string to float before sending
+        totalAmount: Number(amount), // Convert string to number before sending
       };
-      
-      console.log(newBudget)
+
       const response = await axios.post(
         "http://localhost:3000/api/v1/budget/addBudget",
         newBudget,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       console.log("Budget added:", response.data);
-
-      // **Update UI after successful API call**
+      // Update UI after successful API call
       setBudgetList((prev) => [...prev, response.data.budgetAdded]);
-
       // Clear input fields
       setBname("");
       setAmount("");
@@ -64,43 +64,40 @@ const HomePage = ({ email, name }: UserObject) => {
     setLoading(false);
   };
 
+  // Handle changes for the budget name
   const handleName = (e: React.ChangeEvent<HTMLInputElement>) => {
     setBname(e.target.value);
-    console.log(e.target.value);
   };
+
+  // Handle changes for the amount
   const handleAmount = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAmount(e.target.value);
-    console.log(amount);
   };
 
-  useEffect(() => {
-    setN(budgetList.length);
-  }, [budgetList]);
-
+  // Remove a budget by id
   const removeBudget = async (budgetId: string) => {
     setLoading(true);
     try {
       const token = localStorage.getItem("authToken");
-
       if (!token) {
         console.error("No token found");
+        setLoading(false);
         return;
       }
 
       await axios.delete(
         `http://localhost:3000/api/v1/budget/deleteBudget/${budgetId}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
           data: { budgetId },
         }
       );
 
       console.log(`Budget ${budgetId} deleted`);
-
-      // **Update UI after successful API call**
-      setBudgetList((prev) => prev.filter((budget) => budget.id !== budgetId));
+      // Update UI after deletion
+      setBudgetList((prev) =>
+        prev.filter((budget) => budget.id !== budgetId)
+      );
     } catch (error: any) {
       console.error(
         "Failed to delete budget:",
@@ -110,23 +107,22 @@ const HomePage = ({ email, name }: UserObject) => {
     setLoading(false);
   };
 
+  // Fetch budgets on component mount
   useEffect(() => {
     const fetchBudgets = async () => {
       setLoading(true);
       try {
         const token = localStorage.getItem("authToken");
-
         if (!token) {
           console.error("No token found");
+          setLoading(false);
           return;
         }
 
         const result = await axios.get(
           "http://localhost:3000/api/v1/budget/budgets",
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: { Authorization: `Bearer ${token}` },
           }
         );
         setBudgetList(result.data.budgets);
@@ -139,6 +135,11 @@ const HomePage = ({ email, name }: UserObject) => {
     fetchBudgets();
   }, []);
 
+  // New handler: Navigate to the Expense page for a specific budget
+  const handleCardClick = (budgetId: string) => {
+    navigate(`/expense/${budgetId}`);
+  };
+
   return (
     <StyledWrapper>
       <div className="container">
@@ -146,22 +147,33 @@ const HomePage = ({ email, name }: UserObject) => {
         <TopContainer>
           <h2>{name}</h2>
           <h2>{email}</h2>
-          <h2>Number of Budgets: {n.toString()}</h2>
+          <h2>Number of Budgets: {budgetList.length}</h2>
         </TopContainer>
         <h1>BUDGETS</h1>
         <span>
-          <input type="text" placeholder="Budget Name" onChange={handleName} />
-          <input type="text" placeholder="Amount" onChange={handleAmount} />
+          <input
+            type="text"
+            placeholder="Budget Name"
+            onChange={handleName}
+            value={bname}
+          />
+          <input
+            type="text"
+            placeholder="Amount"
+            onChange={handleAmount}
+            value={amount}
+          />
           <button onClick={addBudget}>Add</button>
         </span>
         {loading ? (
-          <Loader /> // Replace with a spinner component
+          <Loader />
         ) : (
           <BottomContainer>
             <ul>
               {budgetList.length ? (
                 budgetList.map((budget) => (
-                  <li key={budget.id}>
+                  // When a list item is clicked, navigate to /expenses/:budgetId
+                  <li key={budget.id} onClick={() => handleCardClick(budget.id)}>
                     <Card
                       budgetAmount={budget.totalAmount.toString()}
                       budgetName={budget.name}
@@ -288,4 +300,4 @@ const BottomContainer = styled.div`
   }
 `;
 
-export default HomePage;
+export default Home;
