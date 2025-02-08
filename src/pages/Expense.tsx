@@ -30,14 +30,7 @@ function Expense() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      console.log("Response data:", response.data);
-      // Assume response.data returns an object with budget details and expenses:
-      // { budget: { name, totalAmount }, Expenses: [...] }
       setExpenseList(response.data.Expenses);
-      // setName(response.data.budget.name);
-      // setAmount(response.data.budget.totalAmount);
-      // console.log(response.data.budget.name);
-      // console.log(response.data.budget.totalAmount);
       calculateAmounts(response.data.Expenses);
     } catch (error) {
       console.error("Failed to fetch expenses:", error);
@@ -128,7 +121,6 @@ function Expense() {
       <div className="container">
         <h1>Expense Info</h1>
         <TopContainer>
-          {/* Display the budget name and total amount */}
           <h2>Name of Budget: {name}</h2>
           <h2>Total Budget: {amount.toString()}</h2>
           <h2>Amount Used: {amountUsed.toString()}</h2>
