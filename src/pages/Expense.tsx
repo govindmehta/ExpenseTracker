@@ -12,31 +12,35 @@ function Expense() {
   const [expenseList, setExpenseList] = useState<
     { id: string; name: string; amount: number }[]
   >([]);
-  const [name, setName] = useState<string>(""); // Name of budget (if needed)
+  const [name, setName] = useState<string>(""); // Name of budget
   const [amount, setAmount] = useState<number>(0); // Total budget amount
   const [expenseName, setExpenseName] = useState<string>("");
   const [expenseAmount, setExpenseAmount] = useState<number>(0);
-
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Function to fetch expenses from the backend for a given budgetId
+  // Function to fetch expenses and budget details from the backend for a given budgetId
   const fetchExpenses = async () => {
     setLoading(true);
     const token = localStorage.getItem("authToken");
     try {
-      // Assume your API supports a query parameter for budgetId
+      // Updated URL: remove the colon before budgetId
       const response = await axios.get(
         `http://localhost:3000/api/v1/expense/expenses/${budgetId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+      console.log("Response data:", response.data);
+      // Assume response.data returns an object with budget details and expenses:
+      // { budget: { name, totalAmount }, Expenses: [...] }
       setExpenseList(response.data.Expenses);
+      setName(response.data.budget.name);
+      setAmount(response.data.budget.totalAmount);
       calculateAmounts(response.data.Expenses);
-      setLoading(false);
     } catch (error) {
       console.error("Failed to fetch expenses:", error);
     }
+    setLoading(false);
   };
 
   // Function to calculate the used and remaining amounts
@@ -75,13 +79,17 @@ function Expense() {
 
   // Function to delete an expense
   const deleteExpense = async (id: string) => {
-    setLoading(true)
+    setLoading(true);
     try {
-      await axios.post(`http://localhost:3000/api/v1/expense/removeExpense/${budgetId}/${id}`, {},{
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-        },
-      });
+      await axios.post(
+        `http://localhost:3000/api/v1/expense/removeExpense/${budgetId}/${id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          },
+        }
+      );
       const updatedExpenses = expenseList.filter((exp) => exp.id !== id);
       setExpenseList(updatedExpenses);
       calculateAmounts(updatedExpenses);
@@ -102,7 +110,8 @@ function Expense() {
       <div className="container">
         <h1>Expense Info</h1>
         <TopContainer>
-          <h2>Name of Budget: {name || "Budget " + budgetId}</h2>
+          {/* Display the budget name and total amount */}
+          <h2>Name of Budget: {name}</h2>
           <h2>Total Budget: {amount.toString()}</h2>
           <h2>Amount Used: {amountUsed.toString()}</h2>
           <h2>Remaining Amount: {remainingAmount.toString()}</h2>

@@ -25,9 +25,14 @@ router.get("/expenses/:budgetId", authMiddleware, async (req, res) => {
     const { budgetId } = req.params;
     const idInNumber = Number(budgetId)
     // Check if the provided budgetId belongs to the user.
-    if (!user.budgets || !user.budgets.find(budget => budget.id === Number(budgetId))) { //////////////////////////////////////////
+    // if (!user.budgets || !user.budgets.find(budget => budget.id === Number(budgetId))) { //////////////////////////////////////////
+    //   return res.status(403).json({ msg: "Budget not found for this user" });
+    // }
+    const foundBudget = user.budgets && user.budgets.find(budget => budget.id === idInNumber);
+    if (!foundBudget) {
       return res.status(403).json({ msg: "Budget not found for this user" });
     }
+
 
     const expenses = await prisma.expense.findMany({
       where: { budgetId: idInNumber },
@@ -39,6 +44,10 @@ router.get("/expenses/:budgetId", authMiddleware, async (req, res) => {
 
     return res.status(200).json({
       msg: "List of expenses",
+      budget: {
+        name: foundBudget.name,
+        totalAmount: foundBudget.totalAmount,
+      },
       Expenses: expenses,
     });
   } catch (error) {
