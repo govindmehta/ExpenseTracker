@@ -1,28 +1,29 @@
-import styled from "styled-components";
-import Card from "../components/Card";
 import { useEffect, useState } from "react";
+import styled from "styled-components";
 import axios from "axios";
+import Card from "../components/Card"; // Assuming Card is used for budgets
 import Loader from "../components/Loader";
-import { useNavigate } from "react-router-dom"; // Import the hook
+import { useNavigate } from "react-router-dom";
 
-interface UserObject {
-  name: string;
-  email: string;
-}
-
+// Define your Budget type (if using TypeScript)
 type Budget = {
   id: string;
   name: string;
   totalAmount: string;
 };
 
-const Home = ({ email, name }: UserObject) => {
+type UserInfo = {
+  name: string;
+  email: string;
+};
+
+const Home = () => {
   const [bname, setBname] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [budgetList, setBudgetList] = useState<Budget[]>([]);
+  const [userInfo, setUserInfo] = useState<UserInfo>({ name: "", email: "" });
   const [loading, setLoading] = useState<boolean>(false);
-  
-  // Initialize navigation
+
   const navigate = useNavigate();
 
   // Add a new budget
@@ -38,7 +39,7 @@ const Home = ({ email, name }: UserObject) => {
 
       const newBudget = {
         name: bname,
-        totalAmount: Number(amount), // Convert string to number before sending
+        totalAmount: Number(amount),
       };
 
       const response = await axios.post(
@@ -107,7 +108,12 @@ const Home = ({ email, name }: UserObject) => {
     setLoading(false);
   };
 
-  // Fetch budgets on component mount
+  // New handler: Navigate to the Expense page for a specific budget
+  const handleCardClick = (budgetId: string) => {
+    navigate(`/expense/${budgetId}`);
+  };
+
+  // Fetch budgets and user info on component mount
   useEffect(() => {
     const fetchBudgets = async () => {
       setLoading(true);
@@ -125,6 +131,8 @@ const Home = ({ email, name }: UserObject) => {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
+        // Expecting response.data to have user and budgets fields
+        setUserInfo(result.data.user);
         setBudgetList(result.data.budgets);
       } catch (error) {
         console.error("Failed to fetch budgets:", error);
@@ -135,18 +143,13 @@ const Home = ({ email, name }: UserObject) => {
     fetchBudgets();
   }, []);
 
-  // New handler: Navigate to the Expense page for a specific budget
-  const handleCardClick = (budgetId: string) => {
-    navigate(`/expense/${budgetId}`);
-  };
-
   return (
     <StyledWrapper>
       <div className="container">
         <h1>EXPENSE TRACKER</h1>
         <TopContainer>
-          <h2>{name}</h2>
-          <h2>{email}</h2>
+          <h2>UserName: {userInfo.name}</h2>
+          <h2>Email: {userInfo.email}</h2>
           <h2>Number of Budgets: {budgetList.length}</h2>
         </TopContainer>
         <h1>BUDGETS</h1>
@@ -172,7 +175,6 @@ const Home = ({ email, name }: UserObject) => {
             <ul>
               {budgetList.length ? (
                 budgetList.map((budget) => (
-                  // When a list item is clicked, navigate to /expenses/:budgetId
                   <li key={budget.id} onClick={() => handleCardClick(budget.id)}>
                     <Card
                       budgetAmount={budget.totalAmount.toString()}
@@ -191,6 +193,7 @@ const Home = ({ email, name }: UserObject) => {
     </StyledWrapper>
   );
 };
+
 
 const StyledWrapper = styled.div`
   .container {

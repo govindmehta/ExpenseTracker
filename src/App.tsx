@@ -11,7 +11,7 @@ function App() {
       <Routes>
         <Route path="/signup" element={<Signup/>}/>
         <Route path="/signin" element={<Signin/>}/>
-        <Route path="/home" element={<HomePage email={"govind@gmail.com"} name={"Govind"}/>}/>
+        <Route path="/home" element={<HomePage />}/>
         <Route path="/expense/:budgetId" element={<Expense />} />
       </Routes>
     </BrowserRouter>
