@@ -34,8 +34,10 @@ function Expense() {
       // Assume response.data returns an object with budget details and expenses:
       // { budget: { name, totalAmount }, Expenses: [...] }
       setExpenseList(response.data.Expenses);
-      setName(response.data.budget.name);
-      setAmount(response.data.budget.totalAmount);
+      // setName(response.data.budget.name);
+      // setAmount(response.data.budget.totalAmount);
+      // console.log(response.data.budget.name);
+      // console.log(response.data.budget.totalAmount);
       calculateAmounts(response.data.Expenses);
     } catch (error) {
       console.error("Failed to fetch expenses:", error);
@@ -99,8 +101,24 @@ function Expense() {
     setLoading(false);
   };
 
+  const fetchBudgetDetails = async () => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await axios.get(
+        `http://localhost:3000/api/v1/expense/details/${budgetId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setName(response.data.budget.name);
+      setAmount(response.data.budget.totalAmount);
+    } catch (error) {
+      console.error("Failed to fetch budget details:", error);
+    }
+  };
+  
+
   useEffect(() => {
     if (budgetId) {
+      fetchBudgetDetails();
       fetchExpenses();
     }
   }, [budgetId]);
