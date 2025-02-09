@@ -30,25 +30,32 @@ function Expense() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+      console.log("Response data:", response.data);
       setExpenseList(response.data.Expenses);
-      calculateAmounts(response.data.Expenses);
+      if (response.data.budget) {
+        setName(response.data.budget.name);
+        setAmount(response.data.budget.totalAmount);
+      }
     } catch (error) {
       console.error("Failed to fetch expenses:", error);
     }
     setLoading(false);
   };
 
-  // Function to calculate the used and remaining amounts
-  const calculateAmounts = (expenses: { name: string; amount: number }[]) => {
-    const totalUsed = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  // useEffect to recalculate amounts whenever expenseList or amount changes
+  useEffect(() => {
+    const totalUsed = expenseList.reduce((sum, exp) => sum + exp.amount, 0);
     setAmountUsed(totalUsed);
     setRemainingAmount(amount - totalUsed);
-  };
+  }, [expenseList, amount]);
 
   // Function to add an expense
   const addExpense = async () => {
     setLoading(true);
-    if (!expenseName || expenseAmount <= 0) return;
+    if (!expenseName || expenseAmount <= 0) {
+      setLoading(false);
+      return;
+    }
 
     const newExpense = { name: expenseName, amount: expenseAmount };
 
@@ -63,7 +70,6 @@ function Expense() {
         }
       );
       setExpenseList((prev) => [...prev, response.data.expense]);
-      calculateAmounts([...expenseList, response.data.expense]);
       setExpenseName("");
       setExpenseAmount(0);
     } catch (error) {
@@ -87,31 +93,14 @@ function Expense() {
       );
       const updatedExpenses = expenseList.filter((exp) => exp.id !== id);
       setExpenseList(updatedExpenses);
-      calculateAmounts(updatedExpenses);
     } catch (error) {
       console.error("Failed to delete expense:", error);
     }
     setLoading(false);
   };
 
-  const fetchBudgetDetails = async () => {
-    try {
-      const token = localStorage.getItem("authToken");
-      const response = await axios.get(
-        `http://localhost:3000/api/v1/expense/details/${budgetId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setName(response.data.budget.name);
-      setAmount(response.data.budget.totalAmount);
-    } catch (error) {
-      console.error("Failed to fetch budget details:", error);
-    }
-  };
-  
-
   useEffect(() => {
     if (budgetId) {
-      fetchBudgetDetails();
       fetchExpenses();
     }
   }, [budgetId]);
@@ -162,6 +151,7 @@ function Expense() {
     </StyledWrapper>
   );
 }
+
 
 const StyledWrapper = styled.div`
   .container {

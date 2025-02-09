@@ -112,7 +112,7 @@ const Signup: React.FC = () => {
             required
           />
           <Button type="submit">Signup</Button>
-          <Link to={"/signin"}>Already a User? Signin Here</Link>
+          <Link to={"/"}>Already a User? Signin Here</Link>
         </Form>
       )}
     </SignupContainer>
