@@ -20,7 +20,7 @@ A full-stack web application for tracking budgets and expenses, built with the M
 ### Prerequisites
 
 - Node.js and npm installed on your system
-- A MongoDB instance or any supported database (configured in your Prisma schema)
+- A PostgresSQL instance or any supported database (configured in your Prisma schema)
 
 ### Clone the Repository
 
